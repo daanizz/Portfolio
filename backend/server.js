@@ -9,12 +9,7 @@ const PORT = process.env.PORT || 3000;
 // ── Middleware ──────────────────────────────────────────────────────────────────
 
 app.use(cors({
-    origin: [
-        process.env.PUBLIC_URL,
-        process.env.ADMIN_URL,
-        'http://localhost:5173',
-        'http://localhost:5174'
-    ].filter(Boolean),
+    origin: true,
     credentials: true
 }));
 
