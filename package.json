@@ -1,0 +1,8 @@
+{
+  "name": "portfolio-glitch",
+  "version": "1.0.0",
+  "description": "Root package.json to help Glitch start the backend",
+  "scripts": {
+    "start": "cd backend && npm install && npm start"
+  }
+}
