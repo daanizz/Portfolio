@@ -3,67 +3,52 @@ const db = require('../db');
 const requireAuth = require('../middleware/auth');
 const router = express.Router();
 
-/**
- * GET /api/socials
- * Public — returns all social links
- */
-router.get('/', (req, res) => {
-    const socials = db.prepare('SELECT * FROM socials ORDER BY sort_order, id').all();
-    res.json(socials);
+router.get('/', async (req, res) => {
+    const rs = await db.execute('SELECT * FROM socials ORDER BY sort_order, id');
+    res.json(rs.rows);
 });
 
-/**
- * POST /api/socials
- * Protected — add a social link
- * Body: { platform: string, url: string }
- */
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { platform, url } = req.body;
 
     if (!platform || !url) {
         return res.status(400).json({ error: 'Platform and URL are required' });
     }
 
-    const result = db.prepare(
-        'INSERT INTO socials (platform, url) VALUES (?, ?)'
-    ).run(platform.trim(), url.trim());
+    const result = await db.execute({
+        sql: 'INSERT INTO socials (platform, url) VALUES (?, ?)',
+        args: [platform.trim(), url.trim()]
+    });
 
-    const social = db.prepare('SELECT * FROM socials WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(social);
+    const socialRs = await db.execute({
+        sql: 'SELECT * FROM socials WHERE id = ?',
+        args: [Number(result.lastInsertRowid)]
+    });
+    res.status(201).json(socialRs.rows[0]);
 });
 
-/**
- * PUT /api/socials/:id
- * Protected — update a social link
- */
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     const { platform, url } = req.body;
-    const current = db.prepare('SELECT * FROM socials WHERE id = ?').get(req.params.id);
+    const currentRs = await db.execute({ sql: 'SELECT * FROM socials WHERE id = ?', args: [req.params.id] });
+    const current = currentRs.rows[0];
 
     if (!current) {
         return res.status(404).json({ error: 'Social link not found' });
     }
 
-    db.prepare(
-        'UPDATE socials SET platform = ?, url = ? WHERE id = ?'
-    ).run(
-        (platform || current.platform).trim(),
-        (url || current.url).trim(),
-        req.params.id
-    );
+    await db.execute({
+        sql: 'UPDATE socials SET platform = ?, url = ? WHERE id = ?',
+        args: [(platform || current.platform).trim(), (url || current.url).trim(), req.params.id]
+    });
 
-    const updated = db.prepare('SELECT * FROM socials WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    const updated = await db.execute({ sql: 'SELECT * FROM socials WHERE id = ?', args: [req.params.id] });
+    res.json(updated.rows[0]);
 });
 
-/**
- * DELETE /api/socials/:id
- * Protected — remove a social link
- */
-router.delete('/:id', requireAuth, (req, res) => {
-    const result = db.prepare('DELETE FROM socials WHERE id = ?').run(req.params.id);
+router.delete('/:id', requireAuth, async (req, res) => {
+    const result = await db.execute({ sql: 'DELETE FROM socials WHERE id = ?', args: [req.params.id] });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
         return res.status(404).json({ error: 'Social link not found' });
     }
 

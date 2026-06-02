@@ -7,9 +7,9 @@ const router = express.Router();
  * GET /api/profile
  * Public — returns the single profile row
  */
-router.get('/', (req, res) => {
-    const profile = db.prepare('SELECT * FROM profile WHERE id = 1').get();
-    res.json(profile);
+router.get('/', async (req, res) => {
+    const rs = await db.execute('SELECT * FROM profile WHERE id = 1');
+    res.json(rs.rows[0]);
 });
 
 /**
@@ -17,28 +17,32 @@ router.get('/', (req, res) => {
  * Protected — updates profile fields
  * Body: { name?, tagline?, bio?, email? }
  */
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, async (req, res) => {
     const { name, tagline, bio, email, avatar_url } = req.body;
-    const current = db.prepare('SELECT * FROM profile WHERE id = 1').get();
+    const currentRs = await db.execute('SELECT * FROM profile WHERE id = 1');
+    const current = currentRs.rows[0];
 
-    db.prepare(`
-    UPDATE profile SET
-      name = ?,
-      tagline = ?,
-      bio = ?,
-      email = ?,
-      avatar_url = ?
-    WHERE id = 1
-  `).run(
-        name ?? current.name,
-        tagline ?? current.tagline,
-        bio ?? current.bio,
-        email ?? current.email,
-        avatar_url ?? current.avatar_url
-    );
+    await db.execute({
+        sql: `
+            UPDATE profile SET
+            name = ?,
+            tagline = ?,
+            bio = ?,
+            email = ?,
+            avatar_url = ?
+            WHERE id = 1
+        `,
+        args: [
+            name ?? current.name,
+            tagline ?? current.tagline,
+            bio ?? current.bio,
+            email ?? current.email,
+            avatar_url ?? current.avatar_url
+        ]
+    });
 
-    const updated = db.prepare('SELECT * FROM profile WHERE id = 1').get();
-    res.json(updated);
+    const updated = await db.execute('SELECT * FROM profile WHERE id = 1');
+    res.json(updated.rows[0]);
 });
 
 module.exports = router;

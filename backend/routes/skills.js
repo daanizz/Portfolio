@@ -3,45 +3,37 @@ const db = require('../db');
 const requireAuth = require('../middleware/auth');
 const router = express.Router();
 
-/**
- * GET /api/skills
- * Public — returns all skills ordered by group then sort_order
- */
-router.get('/', (req, res) => {
-    const skills = db.prepare(
-        'SELECT * FROM skills ORDER BY group_name, sort_order, id'
-    ).all();
-    res.json(skills);
+router.get('/', async (req, res) => {
+    const rs = await db.execute('SELECT * FROM skills ORDER BY group_name, sort_order, id');
+    res.json(rs.rows);
 });
 
-/**
- * POST /api/skills
- * Protected — add a skill
- * Body: { name: string, group_name?: string }
- */
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     const { name, group_name } = req.body;
 
     if (!name || !name.trim()) {
         return res.status(400).json({ error: 'Skill name is required' });
     }
 
-    const result = db.prepare(
-        'INSERT INTO skills (name, group_name) VALUES (?, ?)'
-    ).run(name.trim(), (group_name || 'General').trim());
+    const result = await db.execute({
+        sql: 'INSERT INTO skills (name, group_name) VALUES (?, ?)',
+        args: [name.trim(), (group_name || 'General').trim()]
+    });
 
-    const skill = db.prepare('SELECT * FROM skills WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(skill);
+    const skillRs = await db.execute({
+        sql: 'SELECT * FROM skills WHERE id = ?',
+        args: [Number(result.lastInsertRowid)]
+    });
+    res.status(201).json(skillRs.rows[0]);
 });
 
-/**
- * DELETE /api/skills/:id
- * Protected — remove a skill
- */
-router.delete('/:id', requireAuth, (req, res) => {
-    const result = db.prepare('DELETE FROM skills WHERE id = ?').run(req.params.id);
+router.delete('/:id', requireAuth, async (req, res) => {
+    const result = await db.execute({
+        sql: 'DELETE FROM skills WHERE id = ?',
+        args: [req.params.id]
+    });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
         return res.status(404).json({ error: 'Skill not found' });
     }
 
